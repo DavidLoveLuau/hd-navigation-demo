@@ -1,0 +1,5 @@
+column_width = 100
+indent_type = "Tabs"
+quote_style = "AutoPreferDouble"
+call_parentheses = "None"
+syntax = "Luau"
