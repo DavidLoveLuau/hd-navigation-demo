@@ -45,6 +45,7 @@ const function hasClearConnection(
 	fromAttachment: Attachment,
 	toAttachment: Attachment
 ): boolean
+	-- Raise the ray slightly above the nodes to avoid hitting their surfaces.
 	const origin = fromAttachment.WorldPosition + Vector3.yAxis * NavigationConfig.LinkRayHeight
 	const destination = toAttachment.WorldPosition + Vector3.yAxis * NavigationConfig.LinkRayHeight
 
@@ -57,6 +58,7 @@ const function findClosestNode(nodes: { Node }, position: Vector3): Node?
 
 	for _, node in nodes do
 		const offset = node.attachment.WorldPosition - position
+		-- Use squared distance to avoid computing a square root.
 		const distanceSquared = offset:Dot(offset)
 		if distanceSquared < closestDistanceSquared then
 			closestNode = node
@@ -80,6 +82,7 @@ function NavigationGraph.new(raycaster: ZombieRaycaster.Raycaster): Graph
 		_raycaster = raycaster,
 	}, NavigationGraph) :: any
 
+	-- Rebuild the graph when navigation nodes or raycast exclusions change.
 	CollectionService:GetInstanceAddedSignal(NavigationConfig.NodeTag):Connect(function()
 		self._isDirty = true
 	end)
@@ -181,6 +184,7 @@ function NavigationGraph:_rebuildIfNeeded()
 		end
 	end
 
+	-- Connect nearby nodes that have a clear path between them.
 	for index = 1, #nodes do
 		const node = nodes[index]
 		const nodePosition = node.attachment.WorldPosition
@@ -199,6 +203,7 @@ function NavigationGraph:_rebuildIfNeeded()
 		end
 	end
 
+	-- Split the graph into isolated connected regions.
 	const componentIdByAttachment: { [Attachment]: number } = {}
 	local nextComponentId = 0
 
@@ -247,6 +252,7 @@ function NavigationGraph:_buildFlowField(targetNode: Node): FlowField
 
 	costsByAttachment[targetNode.attachment] = 0
 
+	-- Propagate the shortest path cost outward from the target.
 	while next(unvisitedAttachments) ~= nil do
 		local currentAttachment: Attachment? = nil
 		local currentCost = math.huge
@@ -309,6 +315,7 @@ function NavigationGraph:FindClosestReachableTarget(
 	local closestDistanceSquared = math.huge
 
 	for _, target in targets do
+		-- Ignore targets outside the current connected region.
 		const targetNode = findClosestNode(self._nodes, target.position)
 		if
 			targetNode ~= nil
@@ -344,6 +351,7 @@ function NavigationGraph:GetSteeringTarget(
 	end
 
 	local flowField = self._flowFieldsByPlayer[targetPlayer]
+	-- Rebuild the cached flow field when the graph or target changes.
 	if
 		flowField == nil
 		or flowField.navigationRevision ~= self._navigationRevision
@@ -362,9 +370,8 @@ function NavigationGraph:GetSteeringTarget(
 end
 
 function NavigationGraph:RemoveTarget(player: Player)
+	-- Drop the cached path once the player is no longer a target.
 	self._flowFieldsByPlayer[player] = nil
 end
 
 return table.freeze(NavigationGraph)
-
-
